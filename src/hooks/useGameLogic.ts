@@ -34,7 +34,13 @@ function buildQuestion(casts: Cast[], excludeIds: Set<string>): Question {
   const pool = casts.filter((c) => !excludeIds.has(c.id));
   const candidates = pool.length > 0 ? pool : casts;
   const cast = candidates[Math.floor(Math.random() * candidates.length)];
-  const dummies = shuffle(casts.filter((c) => c.id !== cast.id)).slice(0, 3);
+  const castName = cast.name.trim().toLowerCase();
+  // Exclude same-name casts (e.g. same performer under different store
+  // profiles) from dummies too — two visually-identical buttons make the
+  // correct answer impossible to pick out.
+  const dummies = shuffle(
+    casts.filter((c) => c.id !== cast.id && c.name.trim().toLowerCase() !== castName)
+  ).slice(0, 3);
   const choices = shuffle([cast, ...dummies]);
   return { cast, displayImage: pickRandomImage(cast), choices };
 }
