@@ -36,6 +36,8 @@ type SnapshotCast = {
 
 async function fetchImagesByStoreSlug(): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
+  const rawPerSlug = new Map<string, string[]>();
+  const urlOwners = new Map<string, Set<string>>();
   try {
     const index = await fetch(SNAPSHOTS_INDEX_URL).then((r) => r.json());
     const stores: Record<string, { key: string }> = index.stores ?? {};
@@ -45,15 +47,25 @@ async function fetchImagesByStoreSlug(): Promise<Map<string, string[]>> {
         const casts: SnapshotCast[] = storeData.casts ?? [];
         for (const c of casts) {
           if (!c.store_profile_slug) continue;
+          const slugKey = `${storeName}:${c.store_profile_slug}`;
           const urls = (c.artist_images ?? []).map((img) => img.original_url).filter(Boolean);
-          if (urls.length > 0) {
-            map.set(`${storeName}:${c.store_profile_slug}`, urls);
+          rawPerSlug.set(slugKey, urls);
+          for (const u of urls) {
+            if (!urlOwners.has(u)) urlOwners.set(u, new Set());
+            urlOwners.get(u)!.add(slugKey);
           }
         }
       })
     );
   } catch (err) {
     console.warn("failed to fetch store cast snapshots for multi-image support", err);
+  }
+  // Source data occasionally attributes the same photo to two different
+  // profiles (scraper mixup) — drop any URL shared across more than one
+  // slug so we never show a cast someone else's face.
+  for (const [slugKey, urls] of rawPerSlug) {
+    const unique = urls.filter((u) => (urlOwners.get(u)?.size ?? 0) <= 1);
+    if (unique.length > 0) map.set(slugKey, unique);
   }
   return map;
 }

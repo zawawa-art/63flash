@@ -55,7 +55,7 @@ export default function FlashCard({ question, timeRatio, lastResult, onChoose }:
             whileTap={{ scale: 0.94 }}
             onClick={() => onChoose(c)}
             disabled={!!lastResult}
-            className="rounded-xl border border-neonPink/50 bg-white/5 px-3 py-3 text-sm font-semibold backdrop-blur transition hover:bg-neonPink/20 disabled:opacity-60"
+            className="rounded-xl border border-neonPink/50 bg-black/40 px-3 py-3 text-base font-bold leading-tight text-white backdrop-blur transition hover:bg-neonPink/20 disabled:opacity-60"
           >
             {c.name}
           </motion.button>
