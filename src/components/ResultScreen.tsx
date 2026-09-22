@@ -9,6 +9,8 @@ type SubmitStatus =
 
 type Props = {
   score: number;
+  bestScore: number;
+  isNewRecord: boolean;
   maxCombo: number;
   correctCount: number;
   totalCount: number;
@@ -20,6 +22,8 @@ type Props = {
 
 export default function ResultScreen({
   score,
+  bestScore,
+  isNewRecord,
   maxCombo,
   correctCount,
   totalCount,
@@ -53,8 +57,19 @@ export default function ResultScreen({
         RESULT
       </motion.h2>
 
+      {isNewRecord && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-full bg-gradient-to-r from-neonGold to-neonPink px-6 py-1.5 text-sm font-black text-bgDark shadow-neon"
+        >
+          NEW RECORD!
+        </motion.div>
+      )}
+
       <div className="w-full max-w-xs space-y-2 rounded-xl border border-neonPurple/50 bg-white/5 p-6 text-left">
         <Row label="SCORE" value={score} />
+        <Row label="自己ベスト" value={bestScore} />
         <Row label="MAX COMBO" value={maxCombo} />
         <Row label="正解率" value={`${accuracy}%`} />
       </div>

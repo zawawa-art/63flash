@@ -52,7 +52,9 @@ export function useAudio(volume: number) {
 
   const playCorrect = (combo: number) => {
     const ctx = getCtx();
-    const shift = 1 + Math.min(combo, 10) * 0.04;
+    // No cap — pitch keeps climbing with combo, just tapering via sqrt so a
+    // 100+ combo doesn't shoot straight into ultrasonic territory.
+    const shift = 1 + Math.sqrt(combo) * 0.15;
     const notes = [523.25, 659.25, 784.0].map((f) => f * shift);
     playTones(
       ctx,

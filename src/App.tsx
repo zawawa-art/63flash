@@ -18,6 +18,7 @@ export default function App() {
   const [bestScore, setBestScore] = useState(() =>
     Number(localStorage.getItem(BEST_SCORE_KEY) ?? 0)
   );
+  const [isNewRecord, setIsNewRecord] = useState(false);
   const [casts, setCasts] = useState<Cast[] | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_KEY) ?? "");
@@ -54,6 +55,7 @@ export default function App() {
     if (phase === "result" && score > bestScore) {
       setBestScore(score);
       localStorage.setItem(BEST_SCORE_KEY, String(score));
+      setIsNewRecord(true);
     }
   }, [phase, score, bestScore]);
 
@@ -71,6 +73,7 @@ export default function App() {
 
   const handleStart = () => {
     playTap();
+    setIsNewRecord(false);
     startGame();
   };
 
@@ -124,6 +127,8 @@ export default function App() {
       {phase === "result" && (
         <ResultScreen
           score={score}
+          bestScore={bestScore}
+          isNewRecord={isNewRecord}
           maxCombo={maxCombo}
           correctCount={correctCount}
           totalCount={totalCount}
