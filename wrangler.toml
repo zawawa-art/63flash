@@ -1,0 +1,9 @@
+name = "63flash"
+compatibility_date = "2026-09-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "63flash-leaderboard"
+database_id = "8ae20651-1ce3-4980-a548-b13909b00861"
+migrations_dir = "migrations"

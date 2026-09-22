@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  background: #0a0518;
+}
+
+body {
+  margin: 0;
+  font-family: "Hiragino Sans", "Helvetica Neue", sans-serif;
+  color: white;
+}
