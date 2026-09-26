@@ -65,12 +65,12 @@ export default function FlashCard({ question, timeRatio, language, lastResult, o
           animate={{ opacity: 1, scale: 1, x: 0 }}
           exit={{ opacity: 0, scale: 0.9, x: -40 }}
           transition={{ duration: 0.18 }}
-          className="relative aspect-[3/4] w-full max-h-[48vh] overflow-hidden rounded-2xl border-2 border-neonPurple/60 shadow-neon"
+          className="relative aspect-[2/3] w-full max-h-[52vh] overflow-hidden rounded-2xl border-2 border-neonPurple/60 shadow-neon bg-black/40"
         >
           <img
             src={question.displayImage}
             alt="cast"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-top"
             draggable={false}
           />
 

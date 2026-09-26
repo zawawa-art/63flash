@@ -24,13 +24,13 @@ export default function MissRevealScreen({ cast, language, onContinue }: Props) 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-xs overflow-hidden rounded-2xl border-2 border-neonGold/60 shadow-neon"
+        className="w-full max-w-xs overflow-hidden rounded-2xl border-2 border-neonGold/60 shadow-neon bg-black/40"
       >
-        <div className="aspect-[3/4] w-full max-h-[50vh] overflow-hidden">
+        <div className="aspect-[2/3] w-full max-h-[50vh] overflow-hidden">
           <img
             src={cast.image_url}
             alt={displayName}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-top"
             draggable={false}
           />
         </div>
