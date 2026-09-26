@@ -1,3 +1,5 @@
+export type Difficulty = "easy" | "normal";
+
 export type LeaderboardEntry = {
   rank: number;
   nickname: string;
@@ -5,6 +7,8 @@ export type LeaderboardEntry = {
   maxCombo: number;
   correctCount: number;
   totalCount: number;
+  store: string;
+  difficulty: Difficulty;
   createdAt: string;
 };
 
@@ -14,6 +18,8 @@ export type SubmitScorePayload = {
   maxCombo: number;
   correctCount: number;
   totalCount: number;
+  store?: string;
+  difficulty?: Difficulty;
 };
 
 export type SubmitScoreResult = {
@@ -21,8 +27,12 @@ export type SubmitScoreResult = {
   entry: LeaderboardEntry;
 };
 
-export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  const res = await fetch("/api/leaderboard");
+export async function fetchLeaderboard(store?: string, difficulty?: Difficulty): Promise<LeaderboardEntry[]> {
+  const params = new URLSearchParams();
+  if (store) params.set("store", store);
+  if (difficulty) params.set("difficulty", difficulty);
+  const query = params.toString();
+  const res = await fetch(`/api/leaderboard${query ? `?${query}` : ""}`);
   if (!res.ok) {
     throw new Error("failed to fetch leaderboard");
   }

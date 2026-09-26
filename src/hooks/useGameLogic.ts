@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Cast } from "../data/mockCasts";
 import { preloadImages } from "../utils/preload";
 
-const QUESTION_TIME_MS = 5000;
-const TOTAL_LIVES = 3;
-const PRELOAD_AHEAD = 3;
+export type Difficulty = "easy" | "normal";
 
 export type Question = {
   cast: Cast;
@@ -23,96 +21,118 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function pickRandomImage(cast: Cast): string {
+function pickRandomImage(cast: Cast, lastImage?: string): string {
   const images = cast.images && cast.images.length > 0 ? cast.images : [cast.image_url];
-  return images[Math.floor(Math.random() * images.length)];
+  if (images.length === 1) return images[0];
+  const pool = lastImage ? images.filter((img) => img !== lastImage) : images;
+  const candidates = pool.length > 0 ? pool : images;
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-const RECENT_AVOID_COUNT = 5;
-
-function buildQuestion(casts: Cast[], excludeIds: Set<string>): Question {
+function buildQuestion(
+  casts: Cast[],
+  excludeIds: Set<string>,
+  difficulty: Difficulty,
+  lastImageMap?: Map<string, string>
+): Question {
   const pool = casts.filter((c) => !excludeIds.has(c.id));
   const candidates = pool.length > 0 ? pool : casts;
   const cast = candidates[Math.floor(Math.random() * candidates.length)];
   const castName = cast.name.trim().toLowerCase();
-  // Exclude same-name casts (e.g. same performer under different store
-  // profiles) from dummies too — two visually-identical buttons make the
-  // correct answer impossible to pick out.
-  const dummies = shuffle(
+
+  // Exclude same-name casts from dummies
+  const dummyPool = shuffle(
     casts.filter((c) => c.id !== cast.id && c.name.trim().toLowerCase() !== castName)
-  ).slice(0, 3);
+  );
+
+  const numChoices = difficulty === "easy" ? 2 : 4;
+  const dummyCount = numChoices - 1;
+  const dummies = dummyPool.slice(0, dummyCount);
   const choices = shuffle([cast, ...dummies]);
-  return { cast, displayImage: pickRandomImage(cast), choices };
+  const lastImg = lastImageMap?.get(cast.id);
+  const displayImage = pickRandomImage(cast, lastImg);
+  if (lastImageMap) lastImageMap.set(cast.id, displayImage);
+  return { cast, displayImage, choices };
 }
 
-export function useGameLogic(casts: Cast[]) {
+export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal") {
   const [phase, setPhase] = useState<GamePhase>("start");
   const [queue, setQueue] = useState<Question[]>([]);
   const [current, setCurrent] = useState<Question | null>(null);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
-  const [lives, setLives] = useState(TOTAL_LIVES);
+
+  const totalLives = difficulty === "easy" ? 5 : 3;
+  const questionTimeMs = difficulty === "easy" ? 8000 : 5000;
+  const preloadAhead = 3;
+
+  const [lives, setLives] = useState(totalLives);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(QUESTION_TIME_MS);
+  const [timeLeft, setTimeLeft] = useState(questionTimeMs);
   const [lastResult, setLastResult] = useState<"correct" | "wrong" | null>(null);
   const [missedCast, setMissedCast] = useState<Cast | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const answeredRef = useRef(false);
-  const livesRef = useRef(TOTAL_LIVES);
+  const livesRef = useRef(totalLives);
   const recentIdsRef = useRef<string[]>([]);
   const queueRef = useRef<Question[]>([]);
+  const lastImageMapRef = useRef<Map<string, string>>(new Map());
+  const difficultyRef = useRef(difficulty);
+  difficultyRef.current = difficulty;
 
   const ensureQueue = useCallback(
     (q: Question[]) => {
       if (casts.length === 0) return q;
       const next = [...q];
-      while (next.length < PRELOAD_AHEAD + 1) {
-        const exclude = new Set([...recentIdsRef.current, ...next.map((qq) => qq.cast.id)]);
-        next.push(buildQuestion(casts, exclude));
+      // Adaptively scale recent avoid count so small pools (e.g. single store) still work
+      const avoidLimit = Math.max(1, Math.min(Math.floor(casts.length * 0.4), 15));
+      while (next.length < preloadAhead + 1) {
+        const recentSubset = recentIdsRef.current.slice(-avoidLimit);
+        const exclude = new Set([...recentSubset, ...next.map((qq) => qq.cast.id)]);
+        next.push(buildQuestion(casts, exclude, difficultyRef.current, lastImageMapRef.current));
       }
       return next;
     },
     [casts]
   );
 
-  // Deliberately avoids the functional setState form (setQueue(prev => ...)):
-  // React StrictMode double-invokes those updaters in dev, and this logic
-  // draws fresh randomness + mutates recentIdsRef each call, so double
-  // invocation corrupted recentIdsRef and caused back-to-back repeats.
   const advance = useCallback(() => {
     const next = ensureQueue(queueRef.current);
     const [head, ...rest] = next;
     if (head) {
-      recentIdsRef.current = [...recentIdsRef.current, head.cast.id].slice(-RECENT_AVOID_COUNT);
+      const avoidLimit = Math.max(1, Math.min(Math.floor(casts.length * 0.4), 15));
+      recentIdsRef.current = [...recentIdsRef.current, head.cast.id].slice(-avoidLimit);
     }
     const filled = ensureQueue(rest);
     queueRef.current = filled;
     setQueue(filled);
     setCurrent(head ?? null);
-    preloadImages(filled.slice(0, PRELOAD_AHEAD).map((q) => q.displayImage));
-    setTimeLeft(QUESTION_TIME_MS);
+    preloadImages(filled.slice(0, preloadAhead).map((q) => q.displayImage));
+    setTimeLeft(questionTimeMs);
     startedAtRef.current = performance.now();
     setLastResult(null);
     answeredRef.current = false;
-  }, [ensureQueue]);
+  }, [ensureQueue, questionTimeMs]);
 
   const startGame = useCallback(() => {
+    const livesCount = difficulty === "easy" ? 5 : 3;
     setScore(0);
     setCombo(0);
     setMaxCombo(0);
-    setLives(TOTAL_LIVES);
-    livesRef.current = TOTAL_LIVES;
+    setLives(livesCount);
+    livesRef.current = livesCount;
     setCorrectCount(0);
     setTotalCount(0);
     recentIdsRef.current = [];
     queueRef.current = [];
+    lastImageMapRef.current.clear();
     setPhase("playing");
     setTimeout(() => advance(), 0);
-  }, [advance]);
+  }, [advance, difficulty]);
 
   const revealMiss = useCallback((cast: Cast) => {
     setMissedCast(cast);
@@ -122,6 +142,11 @@ export function useGameLogic(casts: Cast[]) {
 
   const continueFromReveal = useCallback(() => {
     setPhase("result");
+  }, []);
+
+  const goToStart = useCallback(() => {
+    if (timerRef.current) cancelAnimationFrame(timerRef.current);
+    setPhase("start");
   }, []);
 
   const registerAnswer = useCallback(
@@ -140,7 +165,8 @@ export function useGameLogic(casts: Cast[]) {
           return next;
         });
         setCorrectCount((c) => c + 1);
-        setScore((s) => s + 100 * (1 + Math.min(combo, 10) * 0.1));
+        const basePoint = difficulty === "easy" ? 60 : 100;
+        setScore((s) => s + basePoint * (1 + Math.min(combo, 10) * 0.1));
         setLastResult("correct");
       } else {
         setCombo(0);
@@ -158,7 +184,7 @@ export function useGameLogic(casts: Cast[]) {
         }
       }, 450);
     },
-    [current, phase, combo, advance, revealMiss]
+    [current, phase, combo, advance, revealMiss, difficulty]
   );
 
   useEffect(() => {
@@ -166,7 +192,7 @@ export function useGameLogic(casts: Cast[]) {
     let raf: number;
     const tick = () => {
       const elapsed = performance.now() - startedAtRef.current;
-      const remaining = Math.max(0, QUESTION_TIME_MS - elapsed);
+      const remaining = Math.max(0, questionTimeMs - elapsed);
       setTimeLeft(remaining);
       if (remaining <= 0) {
         registerAnswer(null);
@@ -178,7 +204,7 @@ export function useGameLogic(casts: Cast[]) {
     raf = requestAnimationFrame(tick);
     timerRef.current = raf;
     return () => cancelAnimationFrame(raf);
-  }, [phase, current, registerAnswer]);
+  }, [phase, current, registerAnswer, questionTimeMs]);
 
   return {
     phase,
@@ -187,14 +213,16 @@ export function useGameLogic(casts: Cast[]) {
     combo,
     maxCombo,
     lives,
+    totalLives,
     correctCount,
     totalCount,
     timeLeft,
-    timeRatio: timeLeft / QUESTION_TIME_MS,
+    timeRatio: timeLeft / questionTimeMs,
     lastResult,
     missedCast,
     startGame,
     registerAnswer,
     continueFromReveal,
+    goToStart,
   };
 }

@@ -1,12 +1,16 @@
 import { motion } from "framer-motion";
 import { Cast } from "../data/mockCasts";
+import { getCastDisplayName } from "../data/nameDictionary";
 
 type Props = {
   cast: Cast;
+  language: "en" | "ja";
   onContinue: () => void;
 };
 
-export default function MissRevealScreen({ cast, onContinue }: Props) {
+export default function MissRevealScreen({ cast, language, onContinue }: Props) {
+  const displayName = getCastDisplayName(cast, language);
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center">
       <motion.h2
@@ -22,16 +26,19 @@ export default function MissRevealScreen({ cast, onContinue }: Props) {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xs overflow-hidden rounded-2xl border-2 border-neonGold/60 shadow-neon"
       >
-        <div className="aspect-[3/4] w-full overflow-hidden">
+        <div className="aspect-[3/4] w-full max-h-[50vh] overflow-hidden">
           <img
             src={cast.image_url}
-            alt={cast.name}
+            alt={displayName}
             className="h-full w-full object-cover"
             draggable={false}
           />
         </div>
         <div className="space-y-1 bg-white/5 p-4 text-left">
-          <p className="text-xl font-black text-neonGold">{cast.name}</p>
+          <p className="text-xl font-black text-neonGold">{displayName}</p>
+          {cast.name_ja && cast.name_ja !== cast.name && (
+            <p className="text-xs text-white/50">{language === "ja" ? cast.name : cast.name_ja}</p>
+          )}
           {cast.storeName && <p className="text-sm text-white/60">{cast.storeName}</p>}
           {cast.officialUrl && (
             <a
@@ -40,7 +47,7 @@ export default function MissRevealScreen({ cast, onContinue }: Props) {
               rel="noopener noreferrer"
               className="mt-2 inline-block rounded-full bg-gradient-to-r from-neonPurple to-neonPink px-4 py-1.5 text-xs font-bold shadow-neon"
             >
-              公式プロフィールを見る
+              {language === "ja" ? "公式プロフィールを見る" : "View Official Profile"}
             </a>
           )}
         </div>

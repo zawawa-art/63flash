@@ -1,4 +1,5 @@
-import { Cast } from "./mockCasts";
+import { Cast, StoreId } from "./mockCasts";
+import { getCastDisplayName } from "./nameDictionary";
 
 // R2 buckets don't send CORS headers, so the browser can't fetch this
 // domain directly. /r2-proxy is same-origin in both dev (Vite, see
@@ -16,13 +17,18 @@ type RawCast = {
   store?: string;
   store_profile_slug?: string;
   official_url?: string;
+  aliases?: string[];
+  birthday?: string;
+  birthplace?: string;
+  height?: string;
+  catchphrase?: string;
 };
 
-const STORE_DISPLAY_NAMES: Record<string, string> = {
-  rokusan_angel: "ROKUSAN ANGEL",
-  churasun6: "ちゅらさん6沖縄",
-  party_on: "PARTY ON TOKYO",
-  super_spark: "SUPER SPARK TOKYO",
+export const STORE_DISPLAY_NAMES: Record<StoreId, { en: string; ja: string }> = {
+  rokusan_angel: { en: "ROKUSAN ANGEL", ja: "ROKUSAN ANGEL" },
+  super_spark: { en: "SUPER SPARK", ja: "SUPER SPARK" },
+  party_on: { en: "PARTY ON", ja: "PARTY ON" },
+  churasun6: { en: "CHURASUN 6", ja: "ちゅらさん6" },
 };
 
 type SnapshotImage = {
@@ -83,14 +89,27 @@ export async function fetchRealCasts(): Promise<Cast[]> {
     .map((c) => {
       const key = c.store && c.store_profile_slug ? `${c.store}:${c.store_profile_slug}` : "";
       const images = imagesBySlug.get(key);
-      return {
+      const storeId = c.store as StoreId | undefined;
+      let rawName = c.name;
+      if (rawName === "美谷 朱音" || rawName === "美谷朱音") {
+        rawName = "Akane";
+      }
+      const castObj = {
         id: c.id,
-        name: c.name,
+        name: rawName,
+        name_ja: (c.aliases && c.aliases.find((a) => !/^[a-zA-Z0-9\s-_]+$/.test(a))) || undefined,
         image_url: c.avatar_url as string,
         images: images && images.length > 0 ? images : [c.avatar_url as string],
-        storeName: c.store ? STORE_DISPLAY_NAMES[c.store] ?? c.store : undefined,
+        store: storeId,
+        storeName: storeId && STORE_DISPLAY_NAMES[storeId] ? STORE_DISPLAY_NAMES[storeId].ja : c.store,
         officialUrl: c.official_url,
+        birthday: c.birthday,
+        birthplace: c.birthplace,
+        height: c.height,
+        catchphrase: c.catchphrase,
       };
+      castObj.name_ja = getCastDisplayName(castObj, "ja");
+      return castObj;
     });
 
   if (casts.length < 4) {

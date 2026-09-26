@@ -4,25 +4,56 @@
 requirements.md の仕様に基づき、Vite + React + TypeScript + Tailwind + Framer Motion で構築。
 `npm run dev`（フロント）＋ `npm run dev:api`（wrangler pages dev、D1ローカル）で動作確認できる。
 
-## 動いているもの
-- スタート画面（タイトル、BEST SCORE表示、音量スライダー、STARTボタン、ランキングを見るボタン）
-- プレイ画面
-  - 1問1キャストの画像＋4択（正解1名＋ランダムダミー3名）
-  - キャストごとに実写の複数「アー写」からランダムに1枚を表示（`store_cast_snapshots`のartist_imagesを使用）
-  - 制限時間5秒（requestAnimationFrameベース）
-  - ライフ3、誤答/時間切れで減少
-  - 直近5人と重複しないよう出題（`recentIdsRef`で除外）
-  - コンボ加算・スコア倍率（`100 × (1 + min(combo,10) × 0.1)`、コンボ10以上で頭打ち×2.0）
-  - 次の3問分の画像プリロード
-  - 同名キャスト（別店舗の同名の人）は同じ問題のダミー選択肢として出さない
-  - 選択肢ボタンは背景を暗めにし文字を大きく太字にして視認性を確保
-- **ゲームオーバー時のプロフィール表示画面**：不正解でライフが0になった問題の正解キャストの写真・名前・店舗名・公式プロフィールへのリンクを表示 → NEXTでリザルトへ
-- リザルト画面（スコア、**自己ベスト**、最大コンボ、正解率、**NEW RECORD!バナー**、ニックネーム登録、RETRY、ランキングを見る）
-- **Cloudflare D1リーダーボード**：ニックネーム登録でスコアをサーバに送信、TOP20を表示（`functions/api/leaderboard.ts`）
-- Web Audio APIでその場合成する効果音（タップ音、正解時の上昇アルペジオ、誤答時の下降音）— mp3ファイル不要
-  - 正解時のアルペジオはコンボ数に応じて音程が`1 + √combo × 0.15`で上限なく上がっていく（sqrtで緩やかに、頭打ちしない）
+## 実装済みの機能
+
+### 1. スタート画面・ゲーム前オプション設定
+- **難易度選択**:
+  - `EASY`: 2択 / 制限時間8秒 / ライフ5機（初心者・練習用）
+  - `NORMAL`: 4択 / 制限時間5秒 / ライフ3機（通常モード）
+- **出題対象店舗トグル**:
+  - `63 ANGEL`, `SUPER SPARK`, `PARTY ON`, `ちゅらさん6` の各店舗を個別に選択・解除可能（全店舗選択ボタン付き）
+  - 選択中の店舗に応じて出題キャスト数（例: 全店舗167名）をリアルタイム表示
+- **言語切替（日本語 / 英語）**:
+  - 日本語: キャスト名を仮名・漢字表記（`src/data/nameDictionary.ts`による辞書管理）
+  - 英語: キャスト名をローマ字表記
+  - 全画面（UIテキスト、各種ラベル、ボタン等）が多言語対応
+- **Web Audio シンセサイザーBGM**:
+  - 完全スタンドアロンのWeb Audio APIチップチューン／シンセウェイヴ風BGMエンジン（`src/hooks/useAudio.ts`）
+  - 全7トラック搭載、ランダム再生モード、音量スライダー、ON/OFF切替
+- **店舗・難易度別 BEST SCORE表示**:
+  - 選択した店舗構成と難易度に応じたベストスコアをリアルタイムに表示
+
+### 2. プレイ画面
+- 1問1キャストの画像＋難易度に応じた選択肢（EASY: 2択 / NORMAL: 4択）
+- キャストごとに実写の複数「アー写」からランダムに1枚を表示（`store_cast_snapshots`のartist_imagesを使用）
+- **プロフィールヒント機能**:
+  - 写真カードの**右下**に、出身地・誕生日・身長・キャッチフレーズの中から1つを大きくネオンバッジ形式で強調表示
+- 制限時間バー（EASY: 8秒 / NORMAL: 5秒、requestAnimationFrameベース）
+- ライフ管理（EASY: 5機 / NORMAL: 3機、誤答または時間切れで減少）
+- 直近5人と重複しないよう出題（`recentIdsRef`で除外）
+- コンボ加算・スコア倍率（`100 × (1 + min(combo,10) × 0.1)`、コンボ10以上で頭打ち×2.0）
+- 次の3問分の画像プリロード
+- 同名キャスト（別店舗の同名の人）は同じ問題のダミー選択肢として出さない
+- 選択肢ボタンは背景を暗めにし文字を大きく太字にして視認性を確保
+
+### 3. ゲームオーバー時のプロフィール表示画面
+- 不正解でライフが0になった問題の正解キャストの写真・名前・店舗名・公式プロフィールへのリンクを表示 → NEXTでリザルトへ
+
+### 4. リザルト画面
+- スコア、店舗・難易度別の**自己ベスト**、最大コンボ、正解率、**NEW RECORD!バナー**
+- 難易度・店舗バッジの表示
+- ニックネーム登録でCloudflare D1リーダーボードへスコア送信
+- 「もう一度プレイ (RETRY)」と「⚙️ 設定・モードを変更する」ボタン
+- ランキング閲覧画面への遷移
+
+### 5. Cloudflare D1リーダーボード（API & UI）
+- 難易度（`easy` / `normal`）および対象店舗（`all` / 店舗別）ごとのランキング保存・取得（`migrations/0002_add_store_difficulty.sql`）
+- TOP20の順位・スコア・コンボ・登録日時の表示
+
+### 6. サウンド＆エフェクト
+- Web Audio APIによる効果音合成（タップ音、正解時の上昇アルペジオ、誤答時の下降音、コンボに応じたピッチ上昇）
 - Framer Motionでのカード切替・コンボ演出
-- localStorageによるベストスコア・ニックネーム保存（ランキング登録せずローカルの自己ベスト更新だけでも遊べる）
+- localStorageによる自己ベスト・ニックネーム・言語設定・音量設定の保存
 
 ## データソース
 - キャストデータ：R2の`generated/cast_master/latest.json`（ポインタ）→`{yyyymm}.json`から取得（`src/data/fetchCasts.ts`）
@@ -33,45 +64,48 @@ requirements.md の仕様に基づき、Vite + React + TypeScript + Tailwind + F
 
 ## 未実装 / 今後の課題
 - **ダミー選択肢のロジック**：完全ランダム（同名キャストのみ除外）。generation/tagsによる近似縛りは未実装
-- **BPM連動の時間バー**：仕様書は「BPMに合わせて減少」だが、今回は固定5秒で実装
-- **不正対策**：スコア整合性チェック（correctCount/maxCombo/scoreの上限）のみ。Turnstileやレート制限は未導入（「初めてのD1体験」というスコープのため見送り済み）
+- **BPM連動の時間バー**：仕様書は「BPMに合わせて減少」だが、固定秒数（Easy: 8s, Normal: 5s）で実装
+- **不正対策**：スコア整合性チェック（correctCount/maxCombo/scoreの上限）のみ。Turnstileやレート制限は未導入
 
 ## ファイル構成
 ```
 functions/
   api/
-    leaderboard.ts     # D1リーダーボードAPI（GET/POST）
+    leaderboard.ts     # D1リーダーボードAPI（GET/POST, difficulty & store_id対応）
 migrations/
-  0001_init.sql        # D1スキーマ
+  0001_init.sql        # 初期D1スキーマ
+  0002_add_store_difficulty.sql # difficulty & store_idカラム追加
 src/
   components/
-    StartScreen.tsx
-    GameScreen.tsx
-    FlashCard.tsx
+    StartScreen.tsx     # 難易度・店舗トグル・BGM・言語設定
+    GameScreen.tsx      # ゲーム進行・ヘッダー・カード表示
+    FlashCard.tsx       # キャスト写真・右下単一ヒント表示・選択肢
+    StoreLogo.tsx       # 各店舗のSVG/テキストロゴ
     ComboEffect.tsx
-    MissRevealScreen.tsx  # ゲームオーバー時のキャストプロフィール表示
-    ResultScreen.tsx
-    LeaderboardScreen.tsx
+    MissRevealScreen.tsx # ゲームオーバー時のキャストプロフィール表示
+    ResultScreen.tsx    # リザルト表示・ランキング送信
+    LeaderboardScreen.tsx # 難易度・店舗別リーダーボード
   hooks/
-    useGameLogic.ts     # フェーズ管理・スコア・タイマー・問題生成
-    useAudio.ts          # Web Audio APIによる効果音合成
+    useGameLogic.ts     # フェーズ管理・スコア・タイマー・問題生成（難易度/店舗対応）
+    useAudio.ts         # Web Audio APIによる効果音合成 & 7曲シンセBGMエンジン
   utils/
-    preload.ts           # 画像プリロード
+    preload.ts          # 画像プリロード
   data/
-    mockCasts.ts         # モックキャストデータ（フォールバック用）
-    fetchCasts.ts         # R2から実キャストデータ＋複数アー写を取得
-    leaderboardApi.ts     # D1 API呼び出し
+    mockCasts.ts        # モックキャストデータ（フォールバック用）
+    fetchCasts.ts       # R2から実キャストデータ＋複数アー写を取得
+    leaderboardApi.ts   # D1 API呼び出し
+    nameDictionary.ts   # 日本語（漢字/仮名）表記辞書
   App.tsx
 wrangler.toml
 ```
 
 ## 起動方法（ローカル）
-```
+```bash
 cd /Users/sinya/vibecoding/63flash
 npm install
-npm run db:migrate:local   # D1ローカルsqliteへマイグレーション適用（初回のみ）
+npm run db:migrate:local   # D1ローカルsqliteへマイグレーション適用
 npm run dev:api            # 別ターミナル: wrangler pages dev (port 8788)
-npm run dev                 # Vite (port 5173)
+npm run dev                # Vite (port 5173)
 ```
 → http://localhost:5173/ をブラウザで開く
 
