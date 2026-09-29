@@ -78,9 +78,9 @@ migrations/
   0001_init.sql        # 初期D1スキーマ
   0002_add_store_difficulty.sql # difficulty & store_idカラム追加
 scripts/
-  build-cast-pool.mjs   # 現役キャストの複数アー写＋Wayback Live URLを抽出して cast_pool.json を生成
+  build-cast-pool.mjs  # 現行サイト公式スナップショットから安全なアー写プールを抽出・クレンジングするバッチ
 public/
-  cast_pool.json        # 現役キャストプール（167名、Wayback Live URL対応の655枚）
+  cast_pool.json        # 現役キャストプール（167名、クレンジング済み公式アー写267枚）
 src/
   components/
     StartScreen.tsx     # 難易度・店舗選択・BGM・言語設定
