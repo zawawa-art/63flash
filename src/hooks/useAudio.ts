@@ -162,8 +162,9 @@ export function useAudio(
   // Reset BGM playback position to beginning (Step 0)
   const resetBgmPosition = () => {
     stepRef.current = 0;
-    if (ctxRef.current) {
-      nextNoteTimeRef.current = ctxRef.current.currentTime + 0.05;
+    const ctx = getCtx();
+    if (ctx) {
+      nextNoteTimeRef.current = ctx.currentTime + 0.05;
     }
   };
 

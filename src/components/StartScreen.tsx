@@ -194,13 +194,7 @@ export default function StartScreen({
           </div>
 
           <div className="text-right text-[11px] text-white/50">
-            {language === "ja"
-              ? difficulty === "easy"
-                ? `出題対象: 現役 ${castCount}名`
-                : `出題対象: 現役+OG ${castCount}名`
-              : difficulty === "easy"
-              ? `Eligible: Active ${castCount}`
-              : `Eligible: Active+OG ${castCount}`}
+            {language === "ja" ? `対象キャスト: ${castCount}名` : `Eligible Casts: ${castCount}`}
           </div>
         </div>
 

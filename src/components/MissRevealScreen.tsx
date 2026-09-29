@@ -35,14 +35,7 @@ export default function MissRevealScreen({ cast, language, onContinue }: Props) 
           />
         </div>
         <div className="space-y-1 bg-white/5 p-4 text-left">
-          <div className="flex items-center justify-between">
-            <p className="text-xl font-black text-neonGold">{displayName}</p>
-            {cast.is_og && (
-              <span className="rounded-md border border-neonPurple/50 bg-neonPurple/20 px-2 py-0.5 text-[11px] font-black text-purple-200">
-                {language === "ja" ? "🎓 OG (過去在籍)" : "🎓 OG / LEGEND"}
-              </span>
-            )}
-          </div>
+          <p className="text-xl font-black text-neonGold">{displayName}</p>
           {cast.name_ja && cast.name_ja !== cast.name && (
             <p className="text-xs text-white/50">{language === "ja" ? cast.name : cast.name_ja}</p>
           )}

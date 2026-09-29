@@ -74,20 +74,13 @@ export default function App() {
       });
   }, []);
 
-  // Filter casts by selected store ("all" or specific store) and difficulty
+  // Filter casts by selected store ("all" or specific store)
   const filteredCasts = useMemo(() => {
     if (!casts) return [];
-    let pool = selectedStore === "all" ? casts : casts.filter((c) => c.store === selectedStore);
-    return pool.length > 0 ? pool : casts;
+    if (selectedStore === "all") return casts;
+    const filtered = casts.filter((c) => c.store === selectedStore);
+    return filtered.length > 0 ? filtered : casts;
   }, [casts, selectedStore]);
-
-  // Count active / eligible casts based on difficulty
-  const eligibleCastCount = useMemo(() => {
-    if (difficulty === "easy") {
-      return filteredCasts.filter((c) => !c.is_og).length;
-    }
-    return filteredCasts.length;
-  }, [filteredCasts, difficulty]);
 
   const {
     phase,
@@ -139,10 +132,10 @@ export default function App() {
   const handleStart = () => {
     initAudio();
     playTap();
-    resetBgmPosition();
     if (isRandomBgm) {
       setBgmTrack(getRandomTrack());
     }
+    resetBgmPosition();
     setIsNewRecord(false);
     startGame();
   };
@@ -233,7 +226,7 @@ export default function App() {
           onLanguageChange={handleLanguageChange}
           onStart={handleStart}
           onShowLeaderboard={() => setShowLeaderboard(true)}
-          castCount={eligibleCastCount}
+          castCount={filteredCasts.length}
         />
       )}
 

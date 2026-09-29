@@ -9,7 +9,6 @@ const STORE_DISPLAY_NAMES = {
   super_spark: { en: "SUPER SPARK", ja: "SUPER SPARK" },
   party_on: { en: "PARTY ON", ja: "PARTY ON" },
   churasun6: { en: "CHURASUN 6", ja: "ちゅらさん6" },
-  burlesque_ts: { en: "BURLESQUE TOKYO", ja: "バーレスク東京" },
 };
 
 async function fetchJson(url) {
@@ -33,7 +32,7 @@ function query63archive(sql) {
 }
 
 async function main() {
-  console.log("=== Building 63flash Cast Pool (Active + OG + Multi-Images) ===");
+  console.log("=== Building 63flash Cast Pool (Active Casts Only + Rich Multi-Images) ===");
 
   // 1. Fetch current active cast master
   console.log("1. Fetching live cast_master from R2...");
@@ -69,37 +68,48 @@ async function main() {
     const unique = urls.filter((u) => (urlOwners.get(u)?.size ?? 0) <= 1);
     if (unique.length > 0) imagesBySlug.set(slugKey, unique);
   }
-  console.log(`-> Loaded artist images for ${imagesBySlug.size} store profiles.`);
+  console.log(`-> Loaded artist images for ${imagesBySlug.size} store profiles from snapshots.`);
 
-  // 3. Query 63archive for historical / OG casts & photos
-  console.log("3. Querying 63archive D1 database for historical / OG observations...");
-  const ogSql = `
+  // 3. Query 63archive D1 database for historical images of THESE active casts
+  console.log("3. Enriching active casts with historical photos from 63archive...");
+  const archiveSql = `
     SELECT 
       store_id, 
       cast_name, 
-      cast_slug, 
-      min(captured_at) as first_seen, 
-      max(captured_at) as last_seen, 
-      count(DISTINCT image_url) as img_count, 
       group_concat(DISTINCT image_url) as all_images
     FROM roster_observations 
     WHERE image_url IS NOT NULL AND image_url != '' AND length(image_url) > 10
+      AND image_url NOT LIKE '%-200x300.%'
+      AND image_url NOT LIKE '%-150x150.%'
+      AND image_url NOT LIKE '%-300x300.%'
     GROUP BY store_id, cast_name
-    HAVING max(captured_at) < '20260101'
-    ORDER BY max(captured_at) DESC
   `;
-  const archiveRows = query63archive(ogSql);
-  console.log(`-> Found ${archiveRows.length} historical cast records in 63archive.`);
+  const archiveRows = query63archive(archiveSql);
+  const archiveImagesByStoreAndName = new Map();
+  for (const row of archiveRows) {
+    const storeId = row.store_id === "burlesque_ts" ? "rokusan_angel" : row.store_id;
+    const nameKey = `${storeId}:${row.cast_name.trim().toLowerCase()}`;
+    const urls = (row.all_images || "").split(",").filter((u) => u && u.startsWith("http"));
+    archiveImagesByStoreAndName.set(nameKey, urls);
+  }
 
-  // Build active cast map by normalized name
-  const activeNormalizedNames = new Set(activeMasterCasts.map((c) => c.name.toLowerCase().replace(/[\s\-_]/g, "")));
   const pool = [];
 
-  // Add Active Casts
+  // Add Active Casts ONLY with all collected images
   for (const c of activeMasterCasts) {
     const slugKey = c.store && c.store_profile_slug ? `${c.store}:${c.store_profile_slug}` : "";
-    const extraImages = imagesBySlug.get(slugKey) || [];
-    const allImages = Array.from(new Set([c.avatar_url, ...extraImages])).filter(Boolean);
+    const snapshotImages = imagesBySlug.get(slugKey) || [];
+
+    const nameKey = `${c.store}:${c.name.trim().toLowerCase()}`;
+    const archiveImages = archiveImagesByStoreAndName.get(nameKey) || [];
+
+    // Filter out low-res thumbnails (-200x300 etc.) if higher-res exists
+    const rawAllImages = [c.avatar_url, ...snapshotImages, ...archiveImages].filter(Boolean);
+    const deduplicated = Array.from(new Set(rawAllImages)).filter((url) => {
+      // Exclude low-res WP thumbnail versions if original/large exists
+      if (/-200x300\./i.test(url) || /-150x150\./i.test(url)) return false;
+      return true;
+    });
 
     let rawName = c.name;
     if (rawName === "美谷 朱音" || rawName === "美谷朱音") rawName = "Akane";
@@ -109,7 +119,7 @@ async function main() {
       name: rawName,
       name_ja: (c.aliases && c.aliases.find((a) => !/^[a-zA-Z0-9\s-_]+$/.test(a))) || undefined,
       image_url: c.avatar_url,
-      images: allImages,
+      images: deduplicated.length > 0 ? deduplicated : [c.avatar_url],
       is_og: false,
       store: c.store,
       storeName: STORE_DISPLAY_NAMES[c.store]?.ja || c.store,
@@ -121,45 +131,17 @@ async function main() {
     });
   }
 
-  // Add OG Casts from 63archive
-  let addedOgCount = 0;
-  for (const row of archiveRows) {
-    const rawName = row.cast_name.trim();
-    const normName = rawName.toLowerCase().replace(/[\s\-_]/g, "");
-    // Skip if already in active pool
-    if (activeNormalizedNames.has(normName)) continue;
-    // Skip if name is too short or weird placeholder
-    if (rawName.length < 2 || rawName.toLowerCase() === "cast" || rawName.toLowerCase() === "staff") continue;
-
-    const urls = (row.all_images || "").split(",").filter((u) => u && u.startsWith("http"));
-    if (urls.length === 0) continue;
-
-    const storeId = row.store_id === "burlesque_ts" ? "rokusan_angel" : row.store_id;
-    const ogId = `og_${storeId}_${(row.cast_slug || normName).replace(/[^a-zA-Z0-9_]/g, "_")}`;
-
-    pool.push({
-      id: ogId,
-      name: rawName,
-      image_url: urls[0],
-      images: urls,
-      is_og: true,
-      store: storeId,
-      storeName: STORE_DISPLAY_NAMES[storeId]?.ja || storeId,
-      first_seen: row.first_seen,
-      last_seen: row.last_seen,
-    });
-    activeNormalizedNames.add(normName);
-    addedOgCount++;
-  }
-
-  console.log(`-> Added ${addedOgCount} OG casts.`);
-  console.log(`-> Total Cast Pool: ${pool.length} casts (${activeMasterCasts.length} Active + ${addedOgCount} OG)`);
+  const multiCount = pool.filter((c) => c.images.length > 1).length;
+  const totalImgs = pool.reduce((acc, c) => acc + c.images.length, 0);
+  console.log(`-> Total Cast Pool: ${pool.length} casts`);
+  console.log(`-> Casts with Multiple Photos: ${multiCount} / ${pool.length}`);
+  console.log(`-> Total photo count: ${totalImgs} photos (avg ${(totalImgs / pool.length).toFixed(1)} per cast)`);
 
   const outDir = join(process.cwd(), "public");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, "cast_pool.json");
   writeFileSync(outPath, JSON.stringify(pool, null, 2));
-  console.log(`✅ Saved cast pool to ${outPath}`);
+  console.log(`✅ Saved enriched cast pool to ${outPath}`);
 }
 
 main().catch(console.error);

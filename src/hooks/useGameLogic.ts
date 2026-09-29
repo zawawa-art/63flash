@@ -35,24 +35,14 @@ function buildQuestion(
   difficulty: Difficulty,
   lastImageMap?: Map<string, string>
 ): Question {
-  // Easy: 出題対象は現役キャスト（!is_og）のみに限定
-  // Normal: 現役＋OGの両方から出題
-  const difficultyPool =
-    difficulty === "easy"
-      ? casts.filter((c) => !c.is_og)
-      : casts;
-
-  const validPool = difficultyPool.length > 0 ? difficultyPool : casts;
-  const pool = validPool.filter((c) => !excludeIds.has(c.id));
-  const candidates = pool.length > 0 ? pool : validPool;
+  const pool = casts.filter((c) => !excludeIds.has(c.id));
+  const candidates = pool.length > 0 ? pool : casts;
   const cast = candidates[Math.floor(Math.random() * candidates.length)];
   const castName = cast.name.trim().toLowerCase();
 
   // Exclude same-name casts from dummies
-  // Easyのダミー選択肢も現役のみから選出
-  const dummyCandidatePool = difficulty === "easy" ? casts.filter((c) => !c.is_og) : casts;
   const dummyPool = shuffle(
-    dummyCandidatePool.filter((c) => c.id !== cast.id && c.name.trim().toLowerCase() !== castName)
+    casts.filter((c) => c.id !== cast.id && c.name.trim().toLowerCase() !== castName)
   );
 
   const numChoices = difficulty === "easy" ? 2 : 4;
