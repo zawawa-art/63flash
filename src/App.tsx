@@ -40,17 +40,12 @@ export default function App() {
     const saved = localStorage.getItem(LANG_KEY);
     return saved === "en" || saved === "ja" ? saved : "ja";
   });
-  const [selectedStores, setSelectedStores] = useState<Set<StoreId>>(() => {
+  const [selectedStore, setSelectedStore] = useState<"all" | StoreId>(() => {
     const saved = localStorage.getItem(STORES_KEY);
-    if (saved) {
-      try {
-        const arr = JSON.parse(saved);
-        if (Array.isArray(arr) && arr.length > 0) {
-          return new Set(arr);
-        }
-      } catch {}
+    if (saved && (saved === "all" || ALL_STORES.includes(saved as StoreId))) {
+      return saved as "all" | StoreId;
     }
-    return new Set(ALL_STORES);
+    return "all";
   });
 
   const [casts, setCasts] = useState<Cast[] | null>(null);
@@ -58,14 +53,7 @@ export default function App() {
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_KEY) ?? "");
   const [isNewRecord, setIsNewRecord] = useState(false);
 
-  // Compute current store scope key (e.g. 'all' if all selected or multiple, or single store)
-  const currentStoreScope: "all" | StoreId = useMemo(() => {
-    if (selectedStores.size === 1) {
-      return Array.from(selectedStores)[0];
-    }
-    return "all";
-  }, [selectedStores]);
-
+  const currentStoreScope = selectedStore;
   const bestScoreKey = getBestScoreKey(currentStoreScope, difficulty);
   const [bestScore, setBestScore] = useState(() =>
     Number(localStorage.getItem(bestScoreKey) ?? 0)
@@ -86,12 +74,20 @@ export default function App() {
       });
   }, []);
 
-  // Filter casts by selected stores
+  // Filter casts by selected store ("all" or specific store) and difficulty
   const filteredCasts = useMemo(() => {
     if (!casts) return [];
-    const filtered = casts.filter((c) => !c.store || selectedStores.has(c.store));
-    return filtered.length > 0 ? filtered : casts;
-  }, [casts, selectedStores]);
+    let pool = selectedStore === "all" ? casts : casts.filter((c) => c.store === selectedStore);
+    return pool.length > 0 ? pool : casts;
+  }, [casts, selectedStore]);
+
+  // Count active / eligible casts based on difficulty
+  const eligibleCastCount = useMemo(() => {
+    if (difficulty === "easy") {
+      return filteredCasts.filter((c) => !c.is_og).length;
+    }
+    return filteredCasts.length;
+  }, [filteredCasts, difficulty]);
 
   const {
     phase,
@@ -190,23 +186,9 @@ export default function App() {
     localStorage.setItem(LANG_KEY, lang);
   };
 
-  const handleToggleStore = (store: StoreId) => {
-    setSelectedStores((prev) => {
-      const next = new Set(prev);
-      if (next.has(store)) {
-        if (next.size > 1) next.delete(store); // keep at least 1
-      } else {
-        next.add(store);
-      }
-      localStorage.setItem(STORES_KEY, JSON.stringify(Array.from(next)));
-      return next;
-    });
-  };
-
-  const handleSelectAllStores = () => {
-    const next = new Set(ALL_STORES);
-    setSelectedStores(next);
-    localStorage.setItem(STORES_KEY, JSON.stringify(Array.from(next)));
+  const handleSelectStore = (store: "all" | StoreId) => {
+    setSelectedStore(store);
+    localStorage.setItem(STORES_KEY, store);
   };
 
   const handleSubmitScore = async (nick: string) => {
@@ -239,7 +221,7 @@ export default function App() {
           bgmEnabled={bgmEnabled}
           bgmTrack={bgmTrack}
           difficulty={difficulty}
-          selectedStores={selectedStores}
+          selectedStore={selectedStore}
           language={language}
           isRandomBgm={isRandomBgm}
           onVolumeChange={setVolume}
@@ -247,12 +229,11 @@ export default function App() {
           onChangeBgmTrack={handleChangeBgmTrack}
           onToggleRandomBgm={handleToggleRandomBgm}
           onDifficultyChange={handleDifficultyChange}
-          onToggleStore={handleToggleStore}
-          onSelectAllStores={handleSelectAllStores}
+          onSelectStore={handleSelectStore}
           onLanguageChange={handleLanguageChange}
           onStart={handleStart}
           onShowLeaderboard={() => setShowLeaderboard(true)}
-          castCount={filteredCasts.length}
+          castCount={eligibleCastCount}
         />
       )}
 

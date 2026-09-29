@@ -6,6 +6,7 @@ export type Cast = {
   name_ja?: string;
   image_url: string;
   images?: string[];
+  is_og?: boolean;
   generation?: string;
   tags?: string[];
   store?: StoreId;

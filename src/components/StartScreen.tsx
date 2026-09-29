@@ -11,7 +11,7 @@ type Props = {
   bgmEnabled: boolean;
   bgmTrack: BgmTrack;
   difficulty: Difficulty;
-  selectedStores: Set<StoreId>;
+  selectedStore: "all" | StoreId;
   language: "en" | "ja";
   isRandomBgm: boolean;
   onVolumeChange: (v: number) => void;
@@ -19,8 +19,7 @@ type Props = {
   onChangeBgmTrack: (track: BgmTrack) => void;
   onToggleRandomBgm: () => void;
   onDifficultyChange: (d: Difficulty) => void;
-  onToggleStore: (s: StoreId) => void;
-  onSelectAllStores: () => void;
+  onSelectStore: (s: "all" | StoreId) => void;
   onLanguageChange: (lang: "en" | "ja") => void;
   onStart: () => void;
   onShowLeaderboard: () => void;
@@ -35,7 +34,7 @@ export default function StartScreen({
   bgmEnabled,
   bgmTrack,
   difficulty,
-  selectedStores,
+  selectedStore,
   language,
   isRandomBgm,
   onVolumeChange,
@@ -43,14 +42,12 @@ export default function StartScreen({
   onChangeBgmTrack,
   onToggleRandomBgm,
   onDifficultyChange,
-  onToggleStore,
-  onSelectAllStores,
+  onSelectStore,
   onLanguageChange,
   onStart,
   onShowLeaderboard,
   castCount,
 }: Props) {
-  const isAllSelected = STORES.every((s) => selectedStores.has(s));
 
   return (
     <div className="flex h-full flex-col items-center justify-between overflow-y-auto px-4 py-5 text-center">
@@ -146,31 +143,41 @@ export default function StartScreen({
           </div>
         </div>
 
-        {/* Store Selection Toggles */}
+        {/* Store Selection (All or Single Store) */}
         <div className="w-full space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-bold text-white/50">
-            <span>{language === "ja" ? "出題対象店舗" : "TARGET STORES"}</span>
-            <button
-              onClick={onSelectAllStores}
-              className="text-[11px] text-neonPurple underline underline-offset-2 hover:text-neonPink"
-            >
-              {isAllSelected
-                ? language === "ja" ? "全店舗選択中" : "All Selected"
-                : language === "ja" ? "全店舗を選択" : "Select All"}
-            </button>
+          <div className="text-xs font-bold text-white/50 text-left">
+            {language === "ja" ? "出題対象店舗" : "TARGET STORE"}
           </div>
 
+          {/* All Stores button */}
+          <button
+            onClick={() => onSelectStore("all")}
+            className={`w-full rounded-xl border py-2.5 px-3 transition flex items-center justify-between ${
+              selectedStore === "all"
+                ? "border-neonPurple bg-neonPurple/25 text-white shadow-[0_0_14px_rgba(180,70,255,0.4)]"
+                : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+            }`}
+          >
+            <span className="font-black text-sm tracking-wide">
+              {language === "ja" ? "🌟 全店舗（ALL STORES）" : "🌟 ALL STORES"}
+            </span>
+            <span className={`text-xs font-bold ${selectedStore === "all" ? "text-neonPurple" : "text-white/30"}`}>
+              {selectedStore === "all" ? "✓" : "○"}
+            </span>
+          </button>
+
+          {/* Individual Stores Grid */}
           <div className="grid grid-cols-2 gap-2">
             {STORES.map((s) => {
-              const selected = selectedStores.has(s);
+              const selected = selectedStore === s;
               return (
                 <button
                   key={s}
-                  onClick={() => onToggleStore(s)}
-                  className={`relative flex flex-col items-center justify-center rounded-xl border p-2.5 transition overflow-hidden min-h-[58px] ${
+                  onClick={() => onSelectStore(s)}
+                  className={`relative flex flex-col items-center justify-center rounded-xl border p-2.5 transition overflow-hidden min-h-[56px] ${
                     selected
-                      ? "border-neonPurple/80 bg-neonPurple/20 shadow-[0_0_12px_rgba(180,70,255,0.35)]"
-                      : "border-white/10 bg-white/5 opacity-40 hover:opacity-70"
+                      ? "border-neonPurple/90 bg-neonPurple/25 shadow-[0_0_12px_rgba(180,70,255,0.4)]"
+                      : "border-white/10 bg-white/5 opacity-40 hover:opacity-75"
                   }`}
                 >
                   <StoreLogo store={s} />
@@ -187,7 +194,13 @@ export default function StartScreen({
           </div>
 
           <div className="text-right text-[11px] text-white/50">
-            {language === "ja" ? `対象キャスト: ${castCount}名` : `Eligible Casts: ${castCount}`}
+            {language === "ja"
+              ? difficulty === "easy"
+                ? `出題対象: 現役 ${castCount}名`
+                : `出題対象: 現役+OG ${castCount}名`
+              : difficulty === "easy"
+              ? `Eligible: Active ${castCount}`
+              : `Eligible: Active+OG ${castCount}`}
           </div>
         </div>
 

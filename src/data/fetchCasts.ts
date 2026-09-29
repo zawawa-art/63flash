@@ -77,6 +77,23 @@ async function fetchImagesByStoreSlug(): Promise<Map<string, string[]>> {
 }
 
 export async function fetchRealCasts(): Promise<Cast[]> {
+  // First try fetching bundled cast_pool.json (Active + OG + Multi-Images)
+  try {
+    const res = await fetch("/cast_pool.json");
+    if (res.ok) {
+      const pool: Cast[] = await res.json();
+      if (Array.isArray(pool) && pool.length >= 4) {
+        return pool.map((c) => ({
+          ...c,
+          name_ja: getCastDisplayName(c, "ja"),
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load /cast_pool.json, falling back to direct R2 fetch", err);
+  }
+
+  // Fallback to direct R2 fetch
   const pointer = await fetch(POINTER_URL).then((r) => r.json());
   const latestKey: string = pointer.latest_key;
   const full = await fetch(`${R2_BASE}/${latestKey}`).then((r) => r.json());
@@ -100,6 +117,7 @@ export async function fetchRealCasts(): Promise<Cast[]> {
         name_ja: (c.aliases && c.aliases.find((a) => !/^[a-zA-Z0-9\s-_]+$/.test(a))) || undefined,
         image_url: c.avatar_url as string,
         images: images && images.length > 0 ? images : [c.avatar_url as string],
+        is_og: false,
         store: storeId,
         storeName: storeId && STORE_DISPLAY_NAMES[storeId] ? STORE_DISPLAY_NAMES[storeId].ja : c.store,
         officialUrl: c.official_url,
