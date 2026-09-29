@@ -20,7 +20,7 @@ async function fetchJson(url) {
 function query63archive(sql) {
   try {
     const output = execSync(
-      `npx wrangler d1 execute 63archive --remote --command "${sql.replace(/"/g, '\\"')}" --json`,
+      `CLOUDFLARE_ACCOUNT_ID=d8dc211790a52d2cbcbb758320bb62c1 npx wrangler d1 execute 63archive --remote --command "${sql.replace(/"/g, '\\"')}" --json`,
       { cwd: join(process.cwd(), "../63archive"), encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }
     );
     const parsed = JSON.parse(output);
@@ -31,8 +31,36 @@ function query63archive(sql) {
   }
 }
 
+/**
+ * Convert dead origin URL into a live Wayback replay URL
+ */
+function toWaybackLiveUrl(rawUrl, capturedAt = "20240101000000") {
+  if (!rawUrl || typeof rawUrl !== "string") return rawUrl;
+  // If already Wayback or archive.li
+  if (rawUrl.includes("web.archive.org") || rawUrl.includes("archive.li")) {
+    return rawUrl;
+  }
+
+  // Dead origin domains that MUST go through Wayback
+  const deadDomains = [
+    "burlesque-tokyo.com",
+    "burlesque-roppongi.com",
+    "ts.burlesque-tokyo.com",
+  ];
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (deadDomains.some((d) => parsed.hostname.includes(d))) {
+      const ts = capturedAt || "20240101000000";
+      return `https://web.archive.org/web/${ts}im_/${rawUrl}`;
+    }
+  } catch {}
+
+  return rawUrl;
+}
+
 async function main() {
-  console.log("=== Building 63flash Cast Pool (Active Casts Only + Rich Multi-Images) ===");
+  console.log("=== Building 63flash Cast Pool (Active Casts Only + Wayback Live URLs) ===");
 
   // 1. Fetch current active cast master
   console.log("1. Fetching live cast_master from R2...");
@@ -70,27 +98,31 @@ async function main() {
   }
   console.log(`-> Loaded artist images for ${imagesBySlug.size} store profiles from snapshots.`);
 
-  // 3. Query 63archive D1 database for historical images of THESE active casts
-  console.log("3. Enriching active casts with historical photos from 63archive...");
+  // 3. Query 63archive D1 database for historical images of active casts
+  console.log("3. Enriching active casts with historical photos from 63archive (converting to Wayback live URLs)...");
   const archiveSql = `
     SELECT 
       store_id, 
       cast_name, 
-      group_concat(DISTINCT image_url) as all_images
+      image_url,
+      min(captured_at) as first_seen
     FROM roster_observations 
     WHERE image_url IS NOT NULL AND image_url != '' AND length(image_url) > 10
       AND image_url NOT LIKE '%-200x300.%'
       AND image_url NOT LIKE '%-150x150.%'
       AND image_url NOT LIKE '%-300x300.%'
-    GROUP BY store_id, cast_name
+    GROUP BY store_id, cast_name, image_url
   `;
   const archiveRows = query63archive(archiveSql);
   const archiveImagesByStoreAndName = new Map();
   for (const row of archiveRows) {
     const storeId = row.store_id === "burlesque_ts" ? "rokusan_angel" : row.store_id;
     const nameKey = `${storeId}:${row.cast_name.trim().toLowerCase()}`;
-    const urls = (row.all_images || "").split(",").filter((u) => u && u.startsWith("http"));
-    archiveImagesByStoreAndName.set(nameKey, urls);
+    const liveUrl = toWaybackLiveUrl(row.image_url, row.first_seen);
+    if (!archiveImagesByStoreAndName.has(nameKey)) {
+      archiveImagesByStoreAndName.set(nameKey, []);
+    }
+    archiveImagesByStoreAndName.get(nameKey).push(liveUrl);
   }
 
   const pool = [];
@@ -141,7 +173,7 @@ async function main() {
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, "cast_pool.json");
   writeFileSync(outPath, JSON.stringify(pool, null, 2));
-  console.log(`✅ Saved enriched cast pool to ${outPath}`);
+  console.log(`✅ Saved enriched cast pool (with Wayback live URLs) to ${outPath}`);
 }
 
 main().catch(console.error);

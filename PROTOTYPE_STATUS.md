@@ -14,7 +14,7 @@ requirements.md の仕様に基づき、Vite + React + TypeScript + Tailwind + F
   - 「🌟 全店舗（ALL STORES）」または「単一店舗（63 ANGEL / SUPER SPARK / PARTY ON / ちゅらさん6）」のいずれかをスッキリ選べるラジオ/タブ式UI
   - 選択した店舗に応じて出題キャスト数（全店時167名）をリアルタイム表示
 - **複数アー写バリエーション**:
-  - 各店舗のスナップショットから取得した現役キャストの複数アー写・別衣装写真をランダム出題
+  - 各店舗のスナップショット（現行サイト）＋ Wayback Machine ライブReplay URL（旧サイト `burlesque-tokyo.com` 等）を組み合わせ、現役キャストの過去・別衣装アー写（計655枚、平均3.9枚/人）を確実に表示・ランダム出題
 - **言語切替（日本語 / 英語）**:
   - 日本語: キャスト名を仮名・漢字表記（`src/data/nameDictionary.ts`による辞書管理）
   - 英語: キャスト名をローマ字表記
@@ -78,9 +78,9 @@ migrations/
   0001_init.sql        # 初期D1スキーマ
   0002_add_store_difficulty.sql # difficulty & store_idカラム追加
 scripts/
-  build-cast-pool.mjs   # 現役キャストの複数アー写を抽出して cast_pool.json を生成
+  build-cast-pool.mjs   # 現役キャストの複数アー写＋Wayback Live URLを抽出して cast_pool.json を生成
 public/
-  cast_pool.json        # 現役キャストプール（167名、複数アー写対応）
+  cast_pool.json        # 現役キャストプール（167名、Wayback Live URL対応の655枚）
 src/
   components/
     StartScreen.tsx     # 難易度・店舗選択・BGM・言語設定
