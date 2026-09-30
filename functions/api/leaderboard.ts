@@ -7,7 +7,7 @@ const TOP_N = 20;
 const MAX_SCORE_PER_CORRECT = 200; // 100 * (1 + min(combo,10)*0.1) の最大値
 
 const ALLOWED_DIFFICULTIES = new Set(["easy", "normal"]);
-const ALLOWED_STORES = new Set(["all", "rokusan_angel", "super_spark", "party_on", "churasun6"]);
+const ALLOWED_STORES = new Set(["all", "rokusan_angel", "super_spark", "party_on", "churasun6", "special_ichigo"]);
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -153,14 +153,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return jsonResponse(500, { error: "internal_error" });
     }
 
-    const { count } = await context.env.DB.prepare(
+    const rankRow = await context.env.DB.prepare(
       `SELECT COUNT(*) as count FROM scores
        WHERE store = ? AND difficulty = ? AND (score > ? OR (score = ? AND created_at < ?))`
     )
       .bind(store, difficulty, insertResult.score, insertResult.score, insertResult.created_at)
       .first<{ count: number }>();
 
-    const rank = count + 1;
+    const rank = (rankRow?.count ?? 0) + 1;
 
     return jsonResponse(200, { rank, entry: toEntry(insertResult, rank) });
   } catch (err) {
@@ -176,14 +176,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       if (!fallbackInsert) return jsonResponse(500, { error: "internal_error" });
 
-      const { count } = await context.env.DB.prepare(
+      const rankRow = await context.env.DB.prepare(
         `SELECT COUNT(*) as count FROM scores
          WHERE score > ? OR (score = ? AND created_at < ?)`
       )
         .bind(fallbackInsert.score, fallbackInsert.score, fallbackInsert.created_at)
         .first<{ count: number }>();
 
-      const rank = count + 1;
+      const rank = (rankRow?.count ?? 0) + 1;
       return jsonResponse(200, { rank, entry: toEntry(fallbackInsert, rank) });
     } catch {
       return jsonResponse(500, { error: "internal_error" });

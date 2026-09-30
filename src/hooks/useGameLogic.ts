@@ -29,15 +29,30 @@ function pickRandomImage(cast: Cast, lastImage?: string): string {
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
+function pickImageFromDeck(cast: Cast, deck: string[], lastImage?: string): string {
+  const images = cast.images && cast.images.length > 0 ? cast.images : [cast.image_url];
+  if (deck.length === 0) {
+    const fresh = shuffle(images);
+    // pop()で最初に出る末尾が前周の最後と重ならないようにする
+    if (lastImage && fresh.length > 1 && fresh[fresh.length - 1] === lastImage) {
+      [fresh[0], fresh[fresh.length - 1]] = [fresh[fresh.length - 1], fresh[0]];
+    }
+    deck.push(...fresh);
+  }
+  return deck.pop() ?? images[0];
+}
+
 function buildQuestion(
   casts: Cast[],
   excludeIds: Set<string>,
   difficulty: Difficulty,
-  lastImageMap?: Map<string, string>
+  lastImageMap?: Map<string, string>,
+  fixedCast?: Cast,
+  imageDeck?: string[]
 ): Question {
   const pool = casts.filter((c) => !excludeIds.has(c.id));
   const candidates = pool.length > 0 ? pool : casts;
-  const cast = candidates[Math.floor(Math.random() * candidates.length)];
+  const cast = fixedCast ?? candidates[Math.floor(Math.random() * candidates.length)];
   const castName = cast.name.trim().toLowerCase();
 
   // Exclude same-name casts from dummies
@@ -45,17 +60,19 @@ function buildQuestion(
     casts.filter((c) => c.id !== cast.id && c.name.trim().toLowerCase() !== castName)
   );
 
-  const numChoices = difficulty === "easy" ? 2 : 4;
+  const numChoices = fixedCast ? 4 : difficulty === "easy" ? 2 : 4;
   const dummyCount = numChoices - 1;
   const dummies = dummyPool.slice(0, dummyCount);
   const choices = shuffle([cast, ...dummies]);
   const lastImg = lastImageMap?.get(cast.id);
-  const displayImage = pickRandomImage(cast, lastImg);
+  const displayImage = imageDeck
+    ? pickImageFromDeck(cast, imageDeck, lastImg)
+    : pickRandomImage(cast, lastImg);
   if (lastImageMap) lastImageMap.set(cast.id, displayImage);
   return { cast, displayImage, choices };
 }
 
-export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal") {
+export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal", fixedCast?: Cast) {
   const [phase, setPhase] = useState<GamePhase>("start");
   const [queue, setQueue] = useState<Question[]>([]);
   const [current, setCurrent] = useState<Question | null>(null);
@@ -81,6 +98,8 @@ export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal") {
   const recentIdsRef = useRef<string[]>([]);
   const queueRef = useRef<Question[]>([]);
   const lastImageMapRef = useRef<Map<string, string>>(new Map());
+  const fixedImageDeckRef = useRef<string[]>([]);
+  const fixedImageDeckOwnerRef = useRef<string>();
   const difficultyRef = useRef(difficulty);
   difficultyRef.current = difficulty;
 
@@ -93,11 +112,20 @@ export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal") {
       while (next.length < preloadAhead + 1) {
         const recentSubset = recentIdsRef.current.slice(-avoidLimit);
         const exclude = new Set([...recentSubset, ...next.map((qq) => qq.cast.id)]);
-        next.push(buildQuestion(casts, exclude, difficultyRef.current, lastImageMapRef.current));
+        next.push(
+          buildQuestion(
+            casts,
+            exclude,
+            difficultyRef.current,
+            lastImageMapRef.current,
+            fixedCast,
+            fixedCast ? fixedImageDeckRef.current : undefined
+          )
+        );
       }
       return next;
     },
-    [casts]
+    [casts, fixedCast]
   );
 
   const advance = useCallback(() => {
@@ -128,11 +156,20 @@ export function useGameLogic(casts: Cast[], difficulty: Difficulty = "normal") {
     setCorrectCount(0);
     setTotalCount(0);
     recentIdsRef.current = [];
-    queueRef.current = [];
-    lastImageMapRef.current.clear();
+    // SPECIALは再挑戦をまたいで先読みキューと山札を引き継ぎ、
+    // 全写真が一巡する前に同じ写真が再登場しないようにする。
+    // 通常モードは従来どおりゲーム開始ごとに抽選状態をリセットする。
+    const isSameSpecial =
+      fixedCast !== undefined && fixedImageDeckOwnerRef.current === fixedCast.id;
+    if (!isSameSpecial) {
+      queueRef.current = [];
+      lastImageMapRef.current.clear();
+      fixedImageDeckRef.current = [];
+    }
+    fixedImageDeckOwnerRef.current = fixedCast?.id;
     setPhase("playing");
     setTimeout(() => advance(), 0);
-  }, [advance, difficulty]);
+  }, [advance, difficulty, fixedCast]);
 
   const revealMiss = useCallback((cast: Cast) => {
     setMissedCast(cast);

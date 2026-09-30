@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { mockCasts, Cast, StoreId } from "./data/mockCasts";
+import { mockCasts, Cast, GameScope, StoreId } from "./data/mockCasts";
 import { fetchRealCasts } from "./data/fetchCasts";
+import { ICHIGO_SPECIAL_CAST, ICHIGO_SPECIAL_IMAGES } from "./data/ichigoSpecial";
 import { submitScore, Difficulty } from "./data/leaderboardApi";
 import { useGameLogic } from "./hooks/useGameLogic";
 import { useAudio, BgmTrack, getRandomTrack } from "./hooks/useAudio";
@@ -40,10 +41,10 @@ export default function App() {
     const saved = localStorage.getItem(LANG_KEY);
     return saved === "en" || saved === "ja" ? saved : "ja";
   });
-  const [selectedStore, setSelectedStore] = useState<"all" | StoreId>(() => {
+  const [selectedStore, setSelectedStore] = useState<GameScope>(() => {
     const saved = localStorage.getItem(STORES_KEY);
-    if (saved && (saved === "all" || ALL_STORES.includes(saved as StoreId))) {
-      return saved as "all" | StoreId;
+    if (saved && (saved === "all" || saved === "special_ichigo" || ALL_STORES.includes(saved as StoreId))) {
+      return saved as GameScope;
     }
     return "all";
   });
@@ -77,10 +78,13 @@ export default function App() {
   // Filter casts by selected store ("all" or specific store)
   const filteredCasts = useMemo(() => {
     if (!casts) return [];
-    if (selectedStore === "all") return casts;
+    if (selectedStore === "all" || selectedStore === "special_ichigo") return casts;
     const filtered = casts.filter((c) => c.store === selectedStore);
     return filtered.length > 0 ? filtered : casts;
   }, [casts, selectedStore]);
+
+  const isIchigoSpecial = selectedStore === "special_ichigo";
+  const effectiveDifficulty: Difficulty = isIchigoSpecial ? "normal" : difficulty;
 
   const {
     phase,
@@ -99,7 +103,7 @@ export default function App() {
     registerAnswer,
     continueFromReveal,
     goToStart,
-  } = useGameLogic(filteredCasts, difficulty);
+  } = useGameLogic(filteredCasts, effectiveDifficulty, isIchigoSpecial ? ICHIGO_SPECIAL_CAST : undefined);
 
   const { playCorrect, playWrong, playTap, initAudio, resetBgmPosition } = useAudio(
     volume,
@@ -179,9 +183,13 @@ export default function App() {
     localStorage.setItem(LANG_KEY, lang);
   };
 
-  const handleSelectStore = (store: "all" | StoreId) => {
+  const handleSelectStore = (store: GameScope) => {
     setSelectedStore(store);
     localStorage.setItem(STORES_KEY, store);
+    if (store === "special_ichigo") {
+      setDifficulty("normal");
+      localStorage.setItem(DIFF_KEY, "normal");
+    }
   };
 
   const handleSubmitScore = async (nick: string) => {
@@ -194,7 +202,7 @@ export default function App() {
       correctCount,
       totalCount,
       store: currentStoreScope,
-      difficulty,
+      difficulty: effectiveDifficulty,
     });
     return { rank };
   };
@@ -213,7 +221,7 @@ export default function App() {
           volume={volume}
           bgmEnabled={bgmEnabled}
           bgmTrack={bgmTrack}
-          difficulty={difficulty}
+          difficulty={effectiveDifficulty}
           selectedStore={selectedStore}
           language={language}
           isRandomBgm={isRandomBgm}
@@ -226,7 +234,7 @@ export default function App() {
           onLanguageChange={handleLanguageChange}
           onStart={handleStart}
           onShowLeaderboard={() => setShowLeaderboard(true)}
-          castCount={filteredCasts.length}
+          castCount={isIchigoSpecial ? ICHIGO_SPECIAL_IMAGES.length : filteredCasts.length}
         />
       )}
 
@@ -260,7 +268,7 @@ export default function App() {
           maxCombo={maxCombo}
           correctCount={correctCount}
           totalCount={totalCount}
-          difficulty={difficulty}
+          difficulty={effectiveDifficulty}
           storeScope={currentStoreScope}
           language={language}
           initialNickname={nickname}
@@ -274,7 +282,7 @@ export default function App() {
       {showLeaderboard && (
         <LeaderboardScreen
           initialStore={currentStoreScope}
-          initialDifficulty={difficulty}
+          initialDifficulty={effectiveDifficulty}
           language={language}
           onClose={() => setShowLeaderboard(false)}
         />

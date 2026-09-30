@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { StoreId } from "../data/mockCasts";
+import { GameScope, StoreId } from "../data/mockCasts";
 import { STORE_DISPLAY_NAMES } from "../data/fetchCasts";
 import { Difficulty } from "../data/leaderboardApi";
 import { BgmTrack, BGM_TRACKS } from "../hooks/useAudio";
@@ -11,7 +11,7 @@ type Props = {
   bgmEnabled: boolean;
   bgmTrack: BgmTrack;
   difficulty: Difficulty;
-  selectedStore: "all" | StoreId;
+  selectedStore: GameScope;
   language: "en" | "ja";
   isRandomBgm: boolean;
   onVolumeChange: (v: number) => void;
@@ -19,7 +19,7 @@ type Props = {
   onChangeBgmTrack: (track: BgmTrack) => void;
   onToggleRandomBgm: () => void;
   onDifficultyChange: (d: Difficulty) => void;
-  onSelectStore: (s: "all" | StoreId) => void;
+  onSelectStore: (s: GameScope) => void;
   onLanguageChange: (lang: "en" | "ja") => void;
   onStart: () => void;
   onShowLeaderboard: () => void;
@@ -48,6 +48,7 @@ export default function StartScreen({
   onShowLeaderboard,
   castCount,
 }: Props) {
+  const isIchigoSpecial = selectedStore === "special_ichigo";
 
   return (
     <div className="flex h-full flex-col items-center justify-between overflow-y-auto px-4 py-5 text-center">
@@ -108,6 +109,7 @@ export default function StartScreen({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
+              disabled={isIchigoSpecial}
               onClick={() => onDifficultyChange("easy")}
               className={`rounded-xl border p-2 text-left transition ${
                 difficulty === "easy"
@@ -125,6 +127,7 @@ export default function StartScreen({
             </button>
 
             <button
+              disabled={isIchigoSpecial}
               onClick={() => onDifficultyChange("normal")}
               className={`rounded-xl border p-2 text-left transition ${
                 difficulty === "normal"
@@ -146,8 +149,33 @@ export default function StartScreen({
         {/* Store Selection (All or Single Store) */}
         <div className="w-full space-y-1.5">
           <div className="text-xs font-bold text-white/50 text-left">
-            {language === "ja" ? "出題対象店舗" : "TARGET STORE"}
+            {language === "ja" ? "出題モード" : "GAME MODE"}
           </div>
+
+          <button
+            onClick={() => onSelectStore("special_ichigo")}
+            className={`relative w-full overflow-hidden rounded-xl border px-3 py-3 text-left transition ${
+              isIchigoSpecial
+                ? "border-red-300 bg-gradient-to-r from-red-500/35 via-neonPink/25 to-red-500/20 text-white shadow-[0_0_18px_rgba(255,70,100,0.55)]"
+                : "border-red-300/30 bg-red-500/10 text-white/75 hover:bg-red-500/20"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-black tracking-wide text-red-200">
+                  🍓 {language === "ja" ? "いちご生誕祭 SPECIAL" : "ICHIGO BIRTHDAY SPECIAL"}
+                </div>
+                <div className="mt-0.5 text-[11px] text-white/65">
+                  {language === "ja"
+                    ? `歴代写真${castCount}枚・4択・5秒・専用ランキング`
+                    : `${castCount} archive photos · 4 choices · 5 sec`}
+                </div>
+              </div>
+              <span className={`text-xs font-bold ${isIchigoSpecial ? "text-red-200" : "text-white/30"}`}>
+                {isIchigoSpecial ? "✓" : "○"}
+              </span>
+            </div>
+          </button>
 
           {/* All Stores button */}
           <button
@@ -194,7 +222,9 @@ export default function StartScreen({
           </div>
 
           <div className="text-right text-[11px] text-white/50">
-            {language === "ja" ? `対象キャスト: ${castCount}名` : `Eligible Casts: ${castCount}`}
+            {isIchigoSpecial
+              ? language === "ja" ? `収録写真: ${castCount}枚` : `Archive Photos: ${castCount}`
+              : language === "ja" ? `対象キャスト: ${castCount}名` : `Eligible Casts: ${castCount}`}
           </div>
         </div>
 

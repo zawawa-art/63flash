@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { StoreId } from "../data/mockCasts";
+import { GameScope } from "../data/mockCasts";
 import { STORE_DISPLAY_NAMES } from "../data/fetchCasts";
 import { Difficulty } from "../data/leaderboardApi";
 
@@ -18,7 +18,7 @@ type Props = {
   correctCount: number;
   totalCount: number;
   difficulty: Difficulty;
-  storeScope: "all" | StoreId;
+  storeScope: GameScope;
   language: "en" | "ja";
   initialNickname: string;
   onRetry: () => void;
@@ -48,13 +48,15 @@ export default function ResultScreen({
   const accuracy = totalCount === 0 ? 0 : Math.round((correctCount / totalCount) * 100);
 
   const storeLabel =
-    storeScope === "all"
+    storeScope === "special_ichigo"
+      ? language === "ja" ? "🍓 いちごSPECIAL" : "🍓 ICHIGO SPECIAL"
+      : storeScope === "all"
       ? language === "ja"
         ? "全店舗"
         : "All Stores"
       : STORE_DISPLAY_NAMES[storeScope][language];
 
-  const diffLabel = difficulty === "easy" ? "EASY" : "NORMAL";
+  const diffLabel = storeScope === "special_ichigo" ? "SPECIAL" : difficulty === "easy" ? "EASY" : "NORMAL";
 
   const handleSubmit = async () => {
     if (!nickname.trim()) return;

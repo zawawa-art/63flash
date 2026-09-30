@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { fetchLeaderboard, LeaderboardEntry, Difficulty } from "../data/leaderboardApi";
-import { StoreId } from "../data/mockCasts";
+import { GameScope, StoreId } from "../data/mockCasts";
 import { STORE_DISPLAY_NAMES } from "../data/fetchCasts";
 
 type Props = {
-  initialStore?: "all" | StoreId;
+  initialStore?: GameScope;
   initialDifficulty?: Difficulty;
   language: "en" | "ja";
   onClose: () => void;
 };
 
-const STORES: Array<{ id: "all" | StoreId; labelEn: string; labelJa: string }> = [
+const STORES: Array<{ id: GameScope; labelEn: string; labelJa: string }> = [
+  { id: "special_ichigo", labelEn: "🍓 SPECIAL", labelJa: "🍓 SPECIAL" },
   { id: "all", labelEn: "ALL", labelJa: "全店舗" },
   { id: "rokusan_angel", labelEn: "ROKUSAN", labelJa: "ROKUSAN" },
   { id: "super_spark", labelEn: "S.SPARK", labelJa: "SPARK" },
@@ -25,7 +26,7 @@ export default function LeaderboardScreen({
   language,
   onClose,
 }: Props) {
-  const [selectedStore, setSelectedStore] = useState<"all" | StoreId>(initialStore);
+  const [selectedStore, setSelectedStore] = useState<GameScope>(initialStore);
   const [selectedDiff, setSelectedDiff] = useState<Difficulty>(initialDifficulty);
   const [state, setState] = useState<
     { status: "loading" } | { status: "loaded"; entries: LeaderboardEntry[] } | { status: "error" }
@@ -49,7 +50,11 @@ export default function LeaderboardScreen({
       </h2>
 
       {/* Difficulty Filter Tabs */}
-      <div className="flex rounded-full border border-white/20 bg-white/5 p-0.5 text-xs">
+      {selectedStore === "special_ichigo" ? (
+        <div className="rounded-full border border-red-300/50 bg-red-500/15 px-4 py-1 text-xs font-black text-red-200">
+          🍓 ICHIGO SPECIAL
+        </div>
+      ) : <div className="flex rounded-full border border-white/20 bg-white/5 p-0.5 text-xs">
         <button
           onClick={() => setSelectedDiff("normal")}
           className={`rounded-full px-4 py-1 font-bold transition ${
@@ -70,14 +75,17 @@ export default function LeaderboardScreen({
         >
           EASY
         </button>
-      </div>
+      </div>}
 
       {/* Store Filter Tabs */}
       <div className="flex flex-wrap justify-center gap-1 max-w-sm">
         {STORES.map((s) => (
           <button
             key={s.id}
-            onClick={() => setSelectedStore(s.id)}
+            onClick={() => {
+              setSelectedStore(s.id);
+              if (s.id === "special_ichigo") setSelectedDiff("normal");
+            }}
             className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
               selectedStore === s.id
                 ? "bg-neonPurple text-white shadow-[0_0_8px_rgba(180,70,255,0.4)]"
@@ -112,7 +120,9 @@ export default function LeaderboardScreen({
               <div className="flex-1 min-w-0 text-left">
                 <div className="truncate font-bold text-white">{e.nickname}</div>
                 <div className="text-[10px] text-white/40">
-                  {e.store && e.store !== "all" && STORE_DISPLAY_NAMES[e.store as StoreId]
+                  {e.store === "special_ichigo"
+                    ? "🍓 ICHIGO SPECIAL"
+                    : e.store && e.store !== "all" && STORE_DISPLAY_NAMES[e.store as StoreId]
                     ? STORE_DISPLAY_NAMES[e.store as StoreId][language]
                     : language === "ja"
                     ? "全店舗"

@@ -24,6 +24,11 @@ requirements.md の仕様に基づき、Vite + React + TypeScript + Tailwind + F
   - 全7トラック搭載、ランダム再生モード、音量スライダー、ON/OFF切替
 - **店舗・難易度別 BEST SCORE表示**:
   - 選択した店舗構成と難易度に応じたベストスコアをリアルタイムに表示
+- **🍓 いちご生誕祭SPECIAL**:
+  - 2013年以降の公式一覧・個人プロフィール・公式Xから目視選別した歴代写真51枚を収録
+  - 全写真を1周するまで重複しないシャッフルバッグ方式（周回境界でも同じ写真を連続させない）
+  - 4択・5秒・ライフ3固定。正解は毎回「いちご」で、残り3名は全キャストからランダム出題
+  - 通常の店舗・難易度別スコアと分離したSPECIAL専用ベストスコア・ランキング
 
 ### 2. プレイ画面
 - 1問1キャストの画像＋難易度に応じた選択肢（EASY: 2択 / NORMAL: 4択）
@@ -63,19 +68,7 @@ requirements.md の仕様に基づき、Vite + React + TypeScript + Tailwind + F
   - **既知のデータ品質問題**：元データ側で同一画像が複数の異なるプロフィール（slug）に誤って紐づくケースが16件確認されている（特にrokusan_angelの`ami`/`kai`周辺に集中、原因未確定）。63flash側は複数slugに共有される画像URLを`images[]`から除外する防御的対策済み（`fetchImagesByStoreSlug`）
 - 開発時はViteの`/r2-proxy`経由（R2はCORS未対応のため）。本番は同一オリジンでのプロキシが必要（後述）。
 - フェッチ失敗時は`src/data/mockCasts.ts`のダミーデータにフォールバック
-
-## 検討中・企画中の機能
-
-### 🍓 いちご生誕祭SPECIAL（特別イベントモード）
-- **概要**: 9/30のいちごちゃん誕生日に合わせた特別企画モード。
-- **仕様方針**:
-  - スタート画面の店舗選択の並びに「🍓 いちご生誕祭SPECIAL」ボタンを追加。
-  - 出題写真：すべていちごちゃんの歴代写真（2016〜現在）からランダム出題。
-  - 選択肢：4択中1つが必ず「いちご」（配置位置はランダム）、残り3つは他キャストからランダムダミー。
-  - 全問正解がいちごちゃんなので、歴代の衣装・ビジュアル変化を楽しみながら高速タップできる爽快仕様。
-- **写真収集・リンク切れ防止（キャッシュ方針）**:
-  - Wayback Machineおよび現行サイトから歴代公式アー写（Burlesque Roppongi 2016年〜、Burlesque Tokyo時代、ROKUSAN ANGEL現行）を収集。
-  - Waybackの通信タイムアウトや画像欠けを防ぐため、事前に画像をダウンロードして `public/special/ichigo/` 等に静的アセットとしてバンドル。
+- SPECIAL写真：`63archive`のWayback収録と現行公式個人ページから回収し、`public/special/ichigo/`へ静的バンドル（外部通信不要）
 
 ## 未実装 / 今後の課題
 - **ダミー選択肢のロジック**：完全ランダム（同名キャストのみ除外）。generation/tagsによる近似縛りは未実装
@@ -94,6 +87,7 @@ scripts/
   build-cast-pool.mjs  # 現行サイト公式スナップショットから安全なアー写プールを抽出・クレンジングするバッチ
 public/
   cast_pool.json        # 現役キャストプール（167名、クレンジング済み公式アー写267枚）
+  special/ichigo/       # SPECIAL用の目視選別済み歴代写真51枚
 src/
   components/
     StartScreen.tsx     # 難易度・店舗選択・BGM・言語設定
@@ -110,6 +104,7 @@ src/
   utils/
     preload.ts          # 画像プリロード
   data/
+    ichigoSpecial.ts    # SPECIAL写真一覧・いちご固定キャスト定義
     mockCasts.ts        # モックキャストデータ（フォールバック用）
     fetchCasts.ts       # R2から実キャストデータ＋複数アー写を取得
     leaderboardApi.ts   # D1 API呼び出し

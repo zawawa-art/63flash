@@ -60,7 +60,7 @@ export default function FlashCard({ question, timeRatio, language, lastResult, o
       {/* Cast Photo Card */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={question.cast.id}
+          key={question.displayImage}
           initial={{ opacity: 0, scale: 0.9, x: 40 }}
           animate={{ opacity: 1, scale: 1, x: 0 }}
           exit={{ opacity: 0, scale: 0.9, x: -40 }}

@@ -1,4 +1,5 @@
 export type StoreId = "rokusan_angel" | "churasun6" | "party_on" | "super_spark";
+export type GameScope = "all" | StoreId | "special_ichigo";
 
 export type Cast = {
   id: string;
