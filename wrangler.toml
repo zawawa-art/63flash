@@ -7,3 +7,7 @@ binding = "DB"
 database_name = "63flash-leaderboard"
 database_id = "8ae20651-1ce3-4980-a548-b13909b00861"
 migrations_dir = "migrations"
+
+# 63calendar の R2 の読み先（functions/r2-proxy）。合言葉 R2_READ_TOKEN は Secret で別に入れる
+[vars]
+R2_ORIGIN = "https://r2.zawawa.uk"
