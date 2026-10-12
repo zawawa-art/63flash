@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
 // 63calendar の R2。R2_ORIGIN で切り替え、R2_READ_TOKEN があれば合言葉を付ける（63calendar DESIGN §12.45）
-const R2_PUBLIC_BASE = (process.env.R2_ORIGIN || "https://pub-f189d9c407d749eaa795a0cb8bc05849.r2.dev").replace(/\/+$/, "");
+const R2_PUBLIC_BASE = (process.env.R2_ORIGIN || "https://r2.zawawa.uk").replace(/\/+$/, "");
 const R2_HEADERS = process.env.R2_READ_TOKEN ? { "X-R2-Token": process.env.R2_READ_TOKEN } : {};
 
 const STORE_DISPLAY_NAMES = {
