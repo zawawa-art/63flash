@@ -17,11 +17,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     },
   });
   const body = await upstream.arrayBuffer();
+  // sha256 で内容アドレス指定のアセットは二度と変わらないので長期キャッシュ（63calendar DESIGN §12.45）
+  const immutable = path.includes("/assets/sha256/");
   return new Response(body, {
     status: upstream.status,
     headers: {
       "Content-Type": upstream.headers.get("Content-Type") ?? "application/octet-stream",
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=300",
     },
   });
 };
